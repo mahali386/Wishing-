@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WishCrazeEarn Dashboard</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+      margin: 0;
+      padding: 0;
+      background: linear-gradient(to right, #e0c3fc, #8ec5fc);
+      color: #333;
+    }
+    header {
+      background: #6200ea;
+      color: white;
+      padding: 1rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    header img {
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+    }
+    header button {
+      background-color: #ff4081;
+      color: white;
+      border: none;
+      padding: 0.5rem 1rem;
+      border-radius: 20px;
+      cursor: pointer;
+    }
+    .section {
+      padding: 1rem;
+      display: none;
+    }
+    .section.active {
+      display: block;
+    }
+    .card {
+      background: white;
+      border-radius: 10px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+      margin-bottom: 1rem;
+      padding: 1rem;
+      transition: all 0.3s ease;
+    }
+    .tabs {
+      display: flex;
+      justify-content: space-around;
+      background: #fff;
+      border-top: 1px solid #ddd;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      padding: 0.5rem 0;
+    }
+    .tabs button {
+      background: none;
+      border: none;
+      font-size: 1rem;
+      color: #6200ea;
+    }
+    .ads {
+      text-align: center;
+      padding: 1rem;
+      background: #ffe0b2;
+      border-radius: 10px;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div>
+      <strong id="userName">Welcome, User</strong>
+    </div>
+    <img id="userPhoto" src="https://via.placeholder.com/40" alt="User Photo">
+    <button onclick="logout()">Logout</button>
+  </header>
+
+  <div class="section active" id="homeSection">
+    <div class="card">
+      <h2>Your Earnings</h2>
+      <p><strong id="userCoins">Coins: 0</strong></p>
+      <p>₹ <span id="userEarning">0</span></p>
+    </div>
+    <div class="card">
+      <h3>Daily Bonus: +10 Coins</h3>
+      <button onclick="collectBonus()">Collect</button>
+    </div>
+  </div>
+
+  <div class="section" id="taskSection">
+    <div class="card">
+      <h2>Share Festival Wish</h2>
+      <p>Earn coins for every share</p>
+      <button onclick="shareWish()">Share Now</button>
+    </div>
+  </div>
+
+  <div class="section" id="leaderboardSection">
+    <div class="card">
+      <h2>Top Earners</h2>
+      <ol id="leaderboardList"></ol>
+    </div>
+  </div>
+
+  <div class="section" id="profileSection">
+    <div class="card">
+      <h2>Profile</h2>
+      <p>Name: <span id="profileName">User</span></p>
+      <p>Total Coins: <span id="profileCoins">0</span></p>
+    </div>
+  </div>
+
+  <div class="section" id="withdrawSection">
+    <div class="card">
+      <h2>Withdraw Coins</h2>
+      <input type="text" id="upiInput" placeholder="Enter UPI ID" />
+      <input type="number" id="withdrawAmount" placeholder="Coins to Withdraw" />
+      <button onclick="withdrawCoins()">Withdraw</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="ads">[Ad Banner Placeholder]</div>
+  </div>
+
+  <div class="tabs">
+    <button onclick="showSection('homeSection')">Home</button>
+    <button onclick="showSection('taskSection')">Tasks</button>
+    <button onclick="showSection('leaderboardSection')">Leaderboard</button>
+    <button onclick="showSection('profileSection')">Profile</button>
+    <button onclick="showSection('withdrawSection')">Withdraw</button>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-app.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-auth.js";
+    import { getFirestore, doc, getDoc, setDoc, updateDoc, increment, collection, getDocs, query, orderBy, limit } from "https://www.gstatic.com/firebasejs/10.11.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBHo_897YOFw3-v1ZYpMswzEBOxa2IBy7E",
+      authDomain: "wishcrazeearn-90312.firebaseapp.com",
+      projectId: "wishcrazeearn-90312",
+      storageBucket: "wishcrazeearn-90312.appspot.com",
+      messagingSenderId: "39730033666",
+      appId: "1:39730033666:web:625d3ff13ae76c88d6231b"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth();
+    const db = getFirestore();
+
+    function showSection(id) {
+      document.querySelectorAll('.section').forEach(section => section.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        document.getElementById('userName').textContent = user.displayName || 'User';
+        document.getElementById('userPhoto').src = user.photoURL || 'https://via.placeholder.com/40';
+
+        const userRef = doc(db, "users", user.uid);
+        const userSnap = await getDoc(userRef);
+        if (!userSnap.exists()) {
+          await setDoc(userRef, { coins: 0 });
+        }
+        const coins = userSnap.data().coins || 0;
+        document.getElementById('userCoins').textContent = `Coins: ${coins}`;
+        document.getElementById('userEarning').textContent = (coins * 0.1).toFixed(2);
+        document.getElementById('profileName').textContent = user.displayName || 'User';
+        document.getElementById('profileCoins').textContent = coins;
+
+        const q = query(collection(db, "users"), orderBy("coins", "desc"), limit(10));
+        const querySnapshot = await getDocs(q);
+        const leaderboard = document.getElementById("leaderboardList");
+        leaderboard.innerHTML = "";
+        querySnapshot.forEach((doc) => {
+          const data = doc.data();
+          leaderboard.innerHTML += `<li>${data.name || 'User'} - ${data.coins} Coins</li>`;
+        });
+      } else {
+        window.location.href = "login.html";
+      }
+    });
+
+    window.logout = function () {
+      signOut(auth).then(() => window.location.href = "login.html");
+    }
+
+    window.collectBonus = async function () {
+      const user = auth.currentUser;
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, { coins: increment(10) });
+      alert("+10 bonus collected!");
+      location.reload();
+    }
+
+    window.shareWish = async function () {
+      const user = auth.currentUser;
+      const userRef = doc(db, "users", user.uid);
+      await updateDoc(userRef, { coins: increment(5) });
+      alert("+5 Coins for sharing wish!");
+      location.reload();
+    }
+
+    window.withdrawCoins = async function () {
+      const user = auth.currentUser;
+      const amount = parseInt(document.getElementById("withdrawAmount").value);
+      const upi = document.getElementById("upiInput").value.trim();
+      if (!upi || isNaN(amount) || amount <= 0) {
+        alert("Enter valid UPI ID and amount");
+        return;
+      }
+      const userRef = doc(db, "users", user.uid);
+      const userSnap = await getDoc(userRef);
+      const currentCoins = userSnap.data().coins || 0;
+      if (amount > currentCoins) {
+        alert("Not enough coins");
+        return;
+      }
+      await updateDoc(userRef, { coins: increment(-amount) });
+      alert(`Withdraw request for ${amount} coins to ${upi} submitted!`);
+      location.reload();
+    }
+  </script>
+</body>
+</html>
